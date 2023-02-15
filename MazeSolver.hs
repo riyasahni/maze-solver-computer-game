@@ -3,8 +3,7 @@ module MazeSolver where
 import Control.Applicative
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe
-import Text.Read (readMaybe)
+import Data.Set.Lens
 
 type Path = [Pos]
 
@@ -73,7 +72,7 @@ nextPos :: Pos -> MazeMap -> Path -> Maybe Pos
 nextPos (r, c) maze memory =
   -- first check if we've already visited this position
   if (r, c) `elem` memory
-    then Nothing -- \** THIS IS WHERE I'M HAVING AN ISSUE **
+    then Nothing
     else -- check if position exists and free to move to
     case Map.lookup (r, c) maze of
       Nothing -> Nothing
@@ -95,6 +94,8 @@ searchMaze (Just currPos) maze memory = do
     then Just (memory ++ [currPos] ++ [endPos])
     else
       do
+        -- recursively search for full paths in each direction
+        -- and return the first path that is not Nothing
         searchMaze (head nextMoves) maze (memory ++ [currPos])
         <|> searchMaze (nextMoves !! 1) maze (memory ++ [currPos])
         <|> searchMaze (nextMoves !! 2) maze (memory ++ [currPos])
@@ -103,48 +104,99 @@ searchMaze (Just currPos) maze memory = do
 ----------------------------------------------------------------------------------
 -- Extra Credit --
 ----------------------------------------------------------------------------------
+-- helper from a Stack post:
+groupTo :: Int -> [a] -> [[a]]
+groupTo _ [] = []
+groupTo n l
+  | n > 0 = (take n l) : (groupTo n (drop n l))
+  | otherwise = error "Negative or zero n"
 
--- unlines
+printEmptyMaze :: MazeMap -> IO ()
+printEmptyMaze maze = do
+  let mazeList = Map.toList maze
 
-main :: IO ()
-main = do
+  -- find height of maze
+  let mazeWidth = maximum (map (snd . fst) mazeList) + 1
+  -- extract the vals from the maze map
+  let mazeVals = map snd mazeList
+  -- mazeVals groupBy height of grid to group the mazeVals
+  let rowOfVals = groupTo mazeWidth mazeVals
+  -- print each row onto a separate line
+  putStrLn ""
+  putStr "-------------- Maze -------------"
+  putStrLn ""
+  putStrLn ""
+  putStr (unlines rowOfVals)
+  putStrLn ""
+  putStrLn ""
+
+printMazeWithPos :: Maybe Pos -> MazeMap -> IO ()
+printMazeWithPos Nothing maze = printEmptyMaze maze
+printMazeWithPos (Just pose) maze = do
+  let mazeList = Map.toList maze
+
+  -- find width & height of maze
+  let mazeWidth = maximum (map (snd . fst) mazeList) + 1
+  let mazeHeight = maximum (map (fst . fst) mazeList) + 1
+  -- extract the vals from the maze map
+  let mazeVals = map snd mazeList
+  -- find index of val to change given its Pos
+  let i = mazeWidth * (fst pose + 1) + snd pose
+  -- create new list of mazeVals that's updated at i
+  let updatedMazeVals = Tree (element i) '*' mazeVals
+  -- mazeVals groupBy width of grid to group the mazeVals
+  let rowOfVals = groupTo mazeWidth mazeVals
+  -----------------------------------
+  -- TODO --
+  -- update the maze by adding '*' on covered ** JUST FIGURE OUT HOW
+  -- TO UPDATE THE MAZEVALS WITH NEW VAL AT INDEX 'i' ....
+  -----------------------------------
+  -- print each row onto a separate line
+  -- print each row onto a separate line
+  putStrLn ""
+  putStr "-------------- Maze -------------"
+  putStrLn ""
+  putStrLn ""
+  putStr (unlines rowOfVals)
+  putStrLn ""
+  putStrLn ""
+
+  -- unlines
+
+  ---------------------------------------------------------------------------------
+  -- TODO HERE:
+  -- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
+  -- error "TODO"
+
   -- use Map.member to determine whether the map has a 'S' and 'F' to begin with...
   -- getArgs
   -- then pattern match
-  --
+  ---------------------------------------------------------------------------------
+
+  putStrLn ""
+  putStr "-------------- Maze -------------"
+  putStrLn ""
+  putStrLn ""
+  putStr (unlines rowOfVals)
+  putStrLn ""
+  putStrLn ""
+
+printMazewithPath :: Maybe Path -> MazeMap -> IO ()
+printMazewithPath Nothing maze = printEmptyMaze maze
+printMazewithPath (Just path) maze = do
+  pure undefined
+
+main :: IO ()
+main = do
   maze <- createMazeMap "mazes/maze-03.txt"
+
+  printEmptyMaze maze
+
   let startPos = fst $ findStartandEndPos maze
   let maybePath = searchMaze (Just startPos) maze []
 
   case maybePath of
     Nothing -> putStrLn "unsolvable maze"
-    Just p -> print p
-
------------------------------------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------
-
--- TODO: --
-
--- fix bug where I'm checking if my next Pos is already in memory, and want to 'Nothing' for that branch. Right
--- now when I hit this case (nextPos function), it looks like I'm just returning Nothing for the whole maze
--- instead of just looking for another alternative
---      in my searchMaze function, this order passes the given tests:
-{- let nextP =
-      nextMoves !! 1
-  <|> head nextMoves
-  <|> nextMoves !! 2
-  <|> nextMoves !! 3 -}
---      but this order fails because of the bug (because it goes down first and has to backtrack... which returns Nothing overall)
-{- let nextP =
-       head nextMoves
-   <|> nextMoves !! 1
-   <|> nextMoves !! 2
-   <|> nextMoves !! 3 -}
-
--- how do I write my "main" function? Right now I'm hardcoding the file to open...
-
------------------------------------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------------------------
-
--- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
--- error "TODO"
+    Just p -> do
+      putStrLn "---------------------------------"
+      print p
