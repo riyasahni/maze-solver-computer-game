@@ -80,47 +80,50 @@ nextPos (r, c) maze memory =
       Just p -> if p == 'X' then Nothing else Just (r, c)
 
 -- return a path, if one exists, given a starting Pos and MazeMap
-searchMaze :: Pos -> MazeMap -> Path -> Maybe Path
-searchMaze (currRow, currCol) maze memory = do
+searchMaze :: Maybe Pos -> MazeMap -> Path -> Maybe Path
+searchMaze Nothing _ _ = Nothing
+searchMaze (Just currPos) maze memory = do
   -- first get the start Pos and end Pos from map
-  let (startPos, endPos) = findStartandEndPos maze
+  let (_, endPos) = findStartandEndPos maze
 
   -- get the 4 next possible positions from currPos
+  let (currRow, currCol) = currPos
   let nextMoves = nextPossiblePositions (currRow, currCol) maze memory
+
   -- if any of the next possible moves leads to 'F' then pick that
   if Just endPos `elem` nextMoves
-    then Just ([startPos] ++ memory ++ [endPos])
-    else do
-      -- otherwise see which next valid move to make
-      let nextP =
-            nextMoves !! 1
-              <|> head nextMoves
-              <|> nextMoves !! 2
-              <|> nextMoves !! 3
+    then Just (memory ++ [currPos] ++ [endPos])
+    else
+      do
+        searchMaze (head nextMoves) maze (memory ++ [currPos])
+        <|> searchMaze (nextMoves !! 1) maze (memory ++ [currPos])
+        <|> searchMaze (nextMoves !! 2) maze (memory ++ [currPos])
+        <|> searchMaze (nextMoves !! 3) maze (memory ++ [currPos])
 
-      -- if there is no valid move to be made then return Nothing
-      -- else, add nextPos to memory and call searchMaze from nextPos
-      case nextP of
-        Nothing -> Nothing
-        Just np ->
-          searchMaze
-            np
-            maze
-            (memory ++ [np])
+----------------------------------------------------------------------------------
+-- Extra Credit --
+----------------------------------------------------------------------------------
+
+-- unlines
 
 main :: IO ()
 main = do
   -- use Map.member to determine whether the map has a 'S' and 'F' to begin with...
-
-  maze <- createMazeMap "mazes/maze-02.txt"
+  -- getArgs
+  -- then pattern match
+  --
+  maze <- createMazeMap "mazes/maze-03.txt"
   let startPos = fst $ findStartandEndPos maze
-  let maybePath = searchMaze startPos maze []
+  let maybePath = searchMaze (Just startPos) maze []
 
   case maybePath of
     Nothing -> putStrLn "unsolvable maze"
     Just p -> print p
 
--- TODO:
+-----------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------
+
+-- TODO: --
 
 -- fix bug where I'm checking if my next Pos is already in memory, and want to 'Nothing' for that branch. Right
 -- now when I hit this case (nextPos function), it looks like I'm just returning Nothing for the whole maze
@@ -139,6 +142,9 @@ main = do
    <|> nextMoves !! 3 -}
 
 -- how do I write my "main" function? Right now I'm hardcoding the file to open...
+
+-----------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------
 
 -- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
 -- error "TODO"
