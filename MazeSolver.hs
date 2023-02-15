@@ -4,6 +4,7 @@ import Control.Applicative
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
+import Text.Read (readMaybe)
 
 type Path = [Pos]
 
@@ -20,17 +21,18 @@ type MazeMap = Map Pos Char
 ----------------------------------------------------------------------------------
 
 -- load data from file into a Map with key = (Row, Col) val = Char
-createMazeMap :: IO MazeMap
-createMazeMap = do
+createMazeMap :: FilePath -> IO MazeMap
+createMazeMap filePath = do
   -- first extract file contents into [[Char]]
-  rows <- lines <$> readFile "mazeFile.txt"
+  rows <- lines <$> readFile filePath
 
   let gridHeight = length rows
   let gridWidth = length (head rows)
   -- create a list of tuples from (0,0) to (gridHeight, gridWidth)
-  let tuples = [(i, j) | i <- [0 .. gridHeight - 1], j <- [0, gridWidth - 1]]
+  let tuples = [(i, j) | i <- [0 .. gridHeight - 1], j <- [0 .. gridWidth - 1]]
   -- flatten grid that I've read in and zip it with my list of tuples
   let flatGrid = concat rows
+
   let keyValPairs = zip tuples flatGrid
 
   -- fill in my MazeMap with this list of [(Int, Int), Char]
@@ -71,7 +73,7 @@ nextPos :: Pos -> MazeMap -> Path -> Maybe Pos
 nextPos (r, c) maze memory =
   -- first check if we've already visited this position
   if (r, c) `elem` memory
-    then Nothing
+    then Nothing -- \** THIS IS WHERE I'M HAVING AN ISSUE **
     else -- check if position exists and free to move to
     case Map.lookup (r, c) maze of
       Nothing -> Nothing
@@ -85,84 +87,58 @@ searchMaze (currRow, currCol) maze memory = do
 
   -- get the 4 next possible positions from currPos
   let nextMoves = nextPossiblePositions (currRow, currCol) maze memory
-
   -- if any of the next possible moves leads to 'F' then pick that
   if Just endPos `elem` nextMoves
-    then Just (memory ++ [endPos])
+    then Just ([startPos] ++ memory ++ [endPos])
     else do
       -- otherwise see which next valid move to make
-      let nextPos =
-            head nextMoves
-              <|> nextMoves !! 1
+      let nextP =
+            nextMoves !! 1
+              <|> head nextMoves
               <|> nextMoves !! 2
               <|> nextMoves !! 3
 
-      if isNothing nextPos
-        then Nothing
-        else do
-          -- add nextPos to memory and call searchMaze from nextPos
-
-          {-  -- base case: if we reach F then return path
-           if (nextRow, nextCol) == endPos
-             then Just (memory : endPos)
-             else -- base case: if we're going in circles return Nothing
-
-               if (nextRow, nextCol) `elem` memory
-                 then Nothing
-                 else do
-                   case Map.lookup (nextRow + 1, nextCol) maze of {} -}
-
-          pure undefined
-
-{-   case Map.lookup 'F' maze of {}
-  --
-
-  if -- first check if lookup currPos == 'F'
-  -- next check if we've already visited currPos
-  (currRow, currCol) `elem` memory
-    then Nothing
-    else -- otherwise, recursively determine path
-    case Map.lookup (currRow, currCol) maze of
-      Nothing -> error "Given position is not in maze"
-      Just val -> searchMaze () -}
-
-{-
-let nextPos = searchMaze (currRow+1, currCol) maze memory <|>
-              searchMaze (currRow, currCol+1) maze memory <|>
-              searchMaze (currRow)
-
--}
-
--- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
+      -- if there is no valid move to be made then return Nothing
+      -- else, add nextPos to memory and call searchMaze from nextPos
+      case nextP of
+        Nothing -> Nothing
+        Just np ->
+          searchMaze
+            np
+            maze
+            (memory ++ [np])
 
 main :: IO ()
-main =
+main = do
   -- use Map.member to determine whether the map has a 'S' and 'F' to begin with...
 
-  --      something nice to use:
-  --      'alternative' is part of control.Applicative: <|>
-  --      Just 5 <|> Nothing returns Just 5
-  --      if the left side is 'Nothing', then it will just return the right regardless of what the right value is...
-  --      I CAN DO MY SEARCH AND RETURN WHETHER I SHOULD MOVE ROW-WISE OR COLUMN-WISE, OR WHETHER THE MAZE HAS NO SOLUTION (in which case it will return Nothing)
+  maze <- createMazeMap "mazes/maze-02.txt"
+  let startPos = fst $ findStartandEndPos maze
+  let maybePath = searchMaze startPos maze []
 
-  --      I can use <|> and recursion to figure out a path without having to actively backtrack...
-  --      i.e., if I was at (2,2) (check out all 4 directoins)
-  --      pos @ (r, c)
-  --      if pos 'elem' memory then Nothing else:
-  --          search (3,2) map memory <|> search (2,3) map memory <|> search (2, 1) map memory <|> search (reverse (head memory)) map memory
+  case maybePath of
+    Nothing -> putStrLn "unsolvable maze"
+    Just p -> print p
 
-  --      make decision from <|> that isn't already in memory, if possible. make a list of all the neighbors and check if I can make
-  --      a valid move on any of the neighbors (i.e., it isn't already in Memory and it isn't an 'X')
+-- TODO:
 
-  error "TODO"
+-- fix bug where I'm checking if my next Pos is already in memory, and want to 'Nothing' for that branch. Right
+-- now when I hit this case (nextPos function), it looks like I'm just returning Nothing for the whole maze
+-- instead of just looking for another alternative
+--      in my searchMaze function, this order passes the given tests:
+{- let nextP =
+      nextMoves !! 1
+  <|> head nextMoves
+  <|> nextMoves !! 2
+  <|> nextMoves !! 3 -}
+--      but this order fails because of the bug (because it goes down first and has to backtrack... which returns Nothing overall)
+{- let nextP =
+       head nextMoves
+   <|> nextMoves !! 1
+   <|> nextMoves !! 2
+   <|> nextMoves !! 3 -}
 
--- can load the grid into a Map type and then do lookups on each element to find the S and F
--- key = (row, col) and val = the Char
+-- how do I write my "main" function? Right now I'm hardcoding the file to open...
 
--- when I find S, start appending each subsequent non-empty key-value pair into the
--- [(int,int)] that I will eventually return... until I hit F
--- conduct lookups by row first, then by col if row is blocked
-
--- if I hit F first, then do the same until I find S, then return the reversed list
-
--- elemIndices --> do a Key lookup (runs in linear time)
+-- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
+-- error "TODO"
