@@ -128,6 +128,9 @@ spaceN n = init . go
 
 -- helper to format the board (adds space b/w characters)
 -- and shifts the maze more towards the middle
+formatMaze :: [[Char]] -> [[Char]]
+formatMaze rowOfVals = do
+  undefined
 
 printEmptyMaze :: [((Row, Col), Char)] -> IO ()
 printEmptyMaze mazeList = do
@@ -154,8 +157,8 @@ printMazeWithPos (Just pose) mazeList = do
   let updatedMazeVals = updateMazeVals (Just pose) mazeList
   let rowOfVals = groupTo mazeWidth updatedMazeVals
   putStrLn "---------------------------------"
-  putStr (unlines rowOfVals)
   putStrLn ""
+  putStr (unlines rowOfVals)
   putStrLn ""
 
 -- update MazeList with the new character on the maze
@@ -185,12 +188,8 @@ printMazewithPath (Just path) mazeList =
       -- extract the (row, cols) from mazeList
       let keyValPairs = map fst mazeList
       -- replace all [char] in [(row, col), char] with the updated [char']
-      let newMazeList = zip keyValPairs newMazeVals -- [\((r,c), v) \nc = ((r,c), nc)] mazeList newMazeVals
+      let newMazeList = zip keyValPairs newMazeVals
       printMazewithPath (Just rest) newMazeList
-
--- update the mazeList itself every time you call printMazeWithPos
-
--- map printMazeWithPos path
 
 main :: IO ()
 main = do
@@ -218,4 +217,7 @@ main = do
     Just p -> do
       printMazewithPath (Just p) mazeList
       putStrLn "---------------------------------"
+      putStrLn "---------------------------------"
+      putStrLn "Matrix solved!"
+      putStr "Path: "
       print p
