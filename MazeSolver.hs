@@ -136,6 +136,7 @@ printMazeWithPos (Just pose) mazeList = do
   -- let rowOfVals = groupTo mazeWidth updatedMazeVals
   putStrLn "---------------------------------"
   putStrLn ""
+  userInput <- getChar
   putStr (unlines rowOfVals)
   putStrLn ""
 
@@ -180,7 +181,7 @@ main = do
         Nothing -> putStrLn "unsolvable maze"
         Just p -> do
           putStrLn "---------------------------------"
-          putStrLn "Matrix solved!"
+          putStrLn "Maze solved!"
           putStr "Path: "
           print p
     (rf : ["animate"]) -> do
@@ -195,7 +196,6 @@ main = do
           printMazewithPath (Just p) mazeList
           putStrLn "---------------------------------"
           putStrLn "---------------------------------"
-          putStrLn "Ta Daaa! Matrix solved!"
-
+          putStrLn "Ta Daaa! Maze solved!"
     _ -> do
-      putStrLn "Please enter a filePath that contains a maze."
+      putStrLn "Please enter a filePath that contains a valid maze."
