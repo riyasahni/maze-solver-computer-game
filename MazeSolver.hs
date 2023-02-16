@@ -15,6 +15,9 @@ type Col = Int
 
 type MazeMap = Map Pos Char
 
+-- NOTE: Please run my assignment in a Linux environment because I use getChar
+-- and there were buffering issues with using this on a Windows machine...
+
 ----------------------------------------------------------------------------------
 -- Loading data --
 ----------------------------------------------------------------------------------
@@ -171,7 +174,6 @@ printMazewithPath (Just path) mazeList =
 main :: IO ()
 main = do
   input <- getArgs
-
   case input of
     [rf] -> do
       maze <- createMazeMap rf
