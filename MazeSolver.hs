@@ -3,6 +3,7 @@ module MazeSolver where
 import Control.Applicative
 import Data.Map (Map)
 import Data.Map qualified as Map
+import System.Environment (getArgs)
 
 type Path = [Pos]
 
@@ -49,7 +50,6 @@ findStartandEndPos :: MazeMap -> (Pos, Pos)
 findStartandEndPos maze = do
   -- collapse Map into a list of tuples
   let mazeList = Map.toList maze
-
   -- search for the Pos for 'S' and  Pos for 'F'
   let startPos = fst (head (filter (\(_, y) -> y == 'S') mazeList))
   let endPos = fst (head (filter (\(_, y) -> y == 'F') mazeList))
@@ -126,11 +126,21 @@ spaceN n = init . go
     go [] = []
     go xs = let (as, bs) = splitAt n xs in as ++ (' ' : go bs)
 
+---------------------------------------------------------------------------------------
+-- TODO --
+
 -- helper to format the board (adds space b/w characters)
 -- and shifts the maze more towards the middle
 formatMaze :: [[Char]] -> [[Char]]
 formatMaze rowOfVals = do
-  undefined
+  -- first append "                " to each string
+  let shiftedRowOfVals = (\(i) -> ("     " : i)) rowOfVals
+  -- let spacedandShiftedRowOfVals = map (spaceN 1) shiftedRowOfVals
+  -- then add an extra space between each character in each string
+  -- spacedandShiftedRowOfVals
+  shiftedRowOfVals
+
+---------------------------------------------------------------------------------------
 
 printEmptyMaze :: [((Row, Col), Char)] -> IO ()
 printEmptyMaze mazeList = do
@@ -155,7 +165,9 @@ printMazeWithPos (Just pose) mazeList = do
   -- find width & height of maze
   let mazeWidth = maximum (map (snd . fst) mazeList) + 1
   let updatedMazeVals = updateMazeVals (Just pose) mazeList
-  let rowOfVals = groupTo mazeWidth updatedMazeVals
+  -- TESTING FORMATTER: 
+  let rowOfVals = formatMaze (groupTo mazeWidth updatedMazeVals)
+  -- let rowOfVals = groupTo mazeWidth updatedMazeVals
   putStrLn "---------------------------------"
   putStrLn ""
   putStr (unlines rowOfVals)
@@ -165,9 +177,7 @@ printMazeWithPos (Just pose) mazeList = do
 updateMazeVals :: Maybe Pos -> [((Row, Col), Char)] -> [Char]
 updateMazeVals Nothing _ = []
 updateMazeVals (Just pose) mazeList = do
-  -- find width & height of maze
   let mazeWidth = maximum (map (snd . fst) mazeList) + 1
-  -- let mazeHeight = maximum (map (fst . fst) mazeList) + 1
   -- extract the vals from the maze map
   let mazeVals = map snd mazeList
   -- find index of val to change given its Pos
@@ -193,31 +203,35 @@ printMazewithPath (Just path) mazeList =
 
 main :: IO ()
 main = do
-  ---------------------------------------------------------------------------------
-  -- TODO HERE:
-  -- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
-  -- error "TODO"
+  input <- getArgs
 
-  -- use Map.member to determine whether the map has a 'S' and 'F' to begin with...
-  -- getArgs
-  -- then pattern match
-  ---------------------------------------------------------------------------------
-  maze <- createMazeMap "mazes/maze-03.txt"
-
-  let mazeList = Map.toList maze
-
-  printEmptyMaze mazeList
-  -- printMazeWithPos (Just (1, 1)) mazeList
-
-  let startPos = fst $ findStartandEndPos maze
-  let maybePath = searchMaze (Just startPos) maze []
-
-  case maybePath of
-    Nothing -> putStrLn "unsolvable maze"
-    Just p -> do
-      printMazewithPath (Just p) mazeList
-      putStrLn "---------------------------------"
-      putStrLn "---------------------------------"
-      putStrLn "Matrix solved!"
-      putStr "Path: "
-      print p
+  case input of
+    [rf] -> do
+      maze <- createMazeMap rf
+      let startPos = fst $ findStartandEndPos maze
+      let maybePath = searchMaze (Just startPos) maze []
+      case maybePath of
+        Nothing -> putStrLn "unsolvable maze"
+        Just p -> do
+          putStrLn "---------------------------------"
+          putStrLn "Matrix solved!"
+          putStr "Path: "
+          print p
+    (rf : ["animate"]) -> do
+      maze <- createMazeMap rf
+      let mazeList = Map.toList maze
+      let startPos = fst $ findStartandEndPos maze
+      let maybePath = searchMaze (Just startPos) maze []
+      printEmptyMaze mazeList
+      -- printMazeWithPos (Just (1, 1)) mazeList
+      case maybePath of
+        Nothing -> putStrLn "unsolvable maze"
+        Just p -> do
+          printMazewithPath (Just p) mazeList
+          putStrLn "---------------------------------"
+          putStrLn "---------------------------------"
+          putStrLn "Matrix solved!"
+          putStr "Path: "
+          print p
+    _ -> do
+      putStrLn "Please enter a filePath that contains a maze."
