@@ -3,7 +3,6 @@ module MazeSolver where
 import Control.Applicative
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Set.Lens
 
 type Path = [Pos]
 
@@ -108,13 +107,30 @@ searchMaze (Just currPos) maze memory = do
 groupTo :: Int -> [a] -> [[a]]
 groupTo _ [] = []
 groupTo n l
-  | n > 0 = (take n l) : (groupTo n (drop n l))
+  | n > 0 = take n l : groupTo n (drop n l)
   | otherwise = error "Negative or zero n"
 
-printEmptyMaze :: MazeMap -> IO ()
-printEmptyMaze maze = do
-  let mazeList = Map.toList maze
+-- helper to update the ith index in a list
+-- helper from a Stack post:
+replaceNth :: Int -> a -> [a] -> [a]
+replaceNth _ _ [] = []
+replaceNth n newVal (x : xs)
+  | n == 0 = newVal : xs
+  | otherwise = x : replaceNth (n - 1) newVal xs
 
+-- helper from a stack post to add a space after
+-- every char in a string
+spaceN :: Int -> String -> String
+spaceN n = init . go
+  where
+    go [] = []
+    go xs = let (as, bs) = splitAt n xs in as ++ (' ' : go bs)
+
+-- helper to format the board (adds space b/w characters)
+-- and shifts the maze more towards the middle
+
+printEmptyMaze :: [((Row, Col), Char)] -> IO ()
+printEmptyMaze mazeList = do
   -- find height of maze
   let mazeWidth = maximum (map (snd . fst) mazeList) + 1
   -- extract the vals from the maze map
@@ -130,39 +146,54 @@ printEmptyMaze maze = do
   putStrLn ""
   putStrLn ""
 
-printMazeWithPos :: Maybe Pos -> MazeMap -> IO ()
-printMazeWithPos Nothing maze = printEmptyMaze maze
-printMazeWithPos (Just pose) maze = do
-  let mazeList = Map.toList maze
-
+printMazeWithPos :: Maybe Pos -> [((Row, Col), Char)] -> IO ()
+printMazeWithPos Nothing mazeList = printEmptyMaze mazeList
+printMazeWithPos (Just pose) mazeList = do
   -- find width & height of maze
   let mazeWidth = maximum (map (snd . fst) mazeList) + 1
-  let mazeHeight = maximum (map (fst . fst) mazeList) + 1
-  -- extract the vals from the maze map
-  let mazeVals = map snd mazeList
-  -- find index of val to change given its Pos
-  let i = mazeWidth * (fst pose + 1) + snd pose
-  -- create new list of mazeVals that's updated at i
-  let updatedMazeVals = Tree (element i) '*' mazeVals
-  -- mazeVals groupBy width of grid to group the mazeVals
-  let rowOfVals = groupTo mazeWidth mazeVals
-  -----------------------------------
-  -- TODO --
-  -- update the maze by adding '*' on covered ** JUST FIGURE OUT HOW
-  -- TO UPDATE THE MAZEVALS WITH NEW VAL AT INDEX 'i' ....
-  -----------------------------------
-  -- print each row onto a separate line
-  -- print each row onto a separate line
-  putStrLn ""
-  putStr "-------------- Maze -------------"
-  putStrLn ""
-  putStrLn ""
+  let updatedMazeVals = updateMazeVals (Just pose) mazeList
+  let rowOfVals = groupTo mazeWidth updatedMazeVals
+  putStrLn "---------------------------------"
   putStr (unlines rowOfVals)
   putStrLn ""
   putStrLn ""
 
-  -- unlines
+-- update MazeList with the new character on the maze
+updateMazeVals :: Maybe Pos -> [((Row, Col), Char)] -> [Char]
+updateMazeVals Nothing _ = []
+updateMazeVals (Just pose) mazeList = do
+  -- find width & height of maze
+  let mazeWidth = maximum (map (snd . fst) mazeList) + 1
+  -- let mazeHeight = maximum (map (fst . fst) mazeList) + 1
+  -- extract the vals from the maze map
+  let mazeVals = map snd mazeList
+  -- find index of val to change given its Pos
+  let i = (mazeWidth * fst pose) + snd pose
+  -- create new list of mazeVals that's updated at i
+  replaceNth i '★' mazeVals
 
+printMazewithPath :: Maybe Path -> [((Row, Col), Char)] -> IO ()
+printMazewithPath Nothing mazeList = printEmptyMaze mazeList
+printMazewithPath (Just path) mazeList =
+  case path of
+    [] -> putStrLn "Maze complete!"
+    [pos] -> printMazeWithPos (Just pos) mazeList
+    (pos : rest) -> do
+      printMazeWithPos (Just pos) mazeList
+      -- create the updated list of [char] to print after adding '★'
+      let newMazeVals = updateMazeVals (Just pos) mazeList
+      -- extract the (row, cols) from mazeList
+      let keyValPairs = map fst mazeList
+      -- replace all [char] in [(row, col), char] with the updated [char']
+      let newMazeList = zip keyValPairs newMazeVals -- [\((r,c), v) \nc = ((r,c), nc)] mazeList newMazeVals
+      printMazewithPath (Just rest) newMazeList
+
+-- update the mazeList itself every time you call printMazeWithPos
+
+-- map printMazeWithPos path
+
+main :: IO ()
+main = do
   ---------------------------------------------------------------------------------
   -- TODO HERE:
   -- key-val lookup where 'S' is in the loaded map, then call searchMaze (startRow, startCol) (createMazeMap "mazeFile.txt") []
@@ -172,25 +203,12 @@ printMazeWithPos (Just pose) maze = do
   -- getArgs
   -- then pattern match
   ---------------------------------------------------------------------------------
-
-  putStrLn ""
-  putStr "-------------- Maze -------------"
-  putStrLn ""
-  putStrLn ""
-  putStr (unlines rowOfVals)
-  putStrLn ""
-  putStrLn ""
-
-printMazewithPath :: Maybe Path -> MazeMap -> IO ()
-printMazewithPath Nothing maze = printEmptyMaze maze
-printMazewithPath (Just path) maze = do
-  pure undefined
-
-main :: IO ()
-main = do
   maze <- createMazeMap "mazes/maze-03.txt"
 
-  printEmptyMaze maze
+  let mazeList = Map.toList maze
+
+  printEmptyMaze mazeList
+  -- printMazeWithPos (Just (1, 1)) mazeList
 
   let startPos = fst $ findStartandEndPos maze
   let maybePath = searchMaze (Just startPos) maze []
@@ -198,5 +216,6 @@ main = do
   case maybePath of
     Nothing -> putStrLn "unsolvable maze"
     Just p -> do
+      printMazewithPath (Just p) mazeList
       putStrLn "---------------------------------"
       print p
